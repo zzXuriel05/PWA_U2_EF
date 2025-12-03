@@ -4,8 +4,10 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "browser",
+  "display_override": ["window-controls-overlay", "browser"],
   "theme_color": "#000000",
   "background_color": "#ffffff",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -42,6 +44,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "img/SirChloe_.jpg",
+      "sizes": "540x720",
+      "type": "image/jpeg",
+      "form_factor": "narrow"
     }
   ]
 }

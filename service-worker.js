@@ -36,7 +36,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        return cache.addAll(cacheAssets);
+        return cache.addAll(cacheAssets).catch(err => {
+          console.warn('SW4: Algunos assets no pudieron ser cacheados:', err);
+          return Promise.resolve();
+        });
       })
       .then(() => self.skipWaiting())
       .catch(err => console.error('SW4: Error al cachear', err))
@@ -63,14 +66,24 @@ self.addEventListener('activate', (event) => {
 
 // Estrategia Network First con fallback a caché
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then(response => {
+        if (!response || response.status !== 200 || response.type === 'error') {
+          return response;
+        }
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => {
+        return caches.match(event.request)
+          .then(response => response || new Response('Offline - recurso no disponible', { status: 503 }));
+      })
   );
 });
 
@@ -81,8 +94,45 @@ self.addEventListener('message', event => {
   // Cuando reciba el tipo MOSTRAR_NOTIFICACION
   if (event.data.type === 'MOSTRAR_NOTIFICACION') {
     const { title, options } = event.data;
-    self.registration.showNotification(title, options);
+    self.registration.showNotification(title, options)
+      .then(() => console.log('Notificación mostrada correctamente'))
+      .catch(err => console.error('Error mostrando notificación:', err));
   }
+});
+
+// Manejar clicks en notificaciones
+self.addEventListener('notificationclick', event => {
+  console.log('Notificación clickeada:', event.notification.tag);
+  
+  if (event.action === 'close') {
+    event.notification.close();
+    return;
+  }
+
+  event.notification.close();
+  
+  // Abrir la ventana/pestaña
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientList => {
+        // Si ya existe una ventana, enfocarla
+        for (let i = 0; i < clientList.length; i++) {
+          const client = clientList[i];
+          if (client.url === '/' && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // Si no existe, crear una nueva
+        if (clients.openWindow) {
+          return clients.openWindow('./');
+        }
+      })
+  );
+});
+
+// Manejar cerrar notificaciones
+self.addEventListener('notificationclose', event => {
+  console.log('Notificación cerrada:', event.notification.tag);
 });
 
 
